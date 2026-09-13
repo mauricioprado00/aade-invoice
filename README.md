@@ -15,10 +15,11 @@ them to production. `--env` points at a different credentials file.
 
 ## aade-invoice
 
-The amount is the net value in euros. Everything else comes from
-`invoice-template.json`, which is modelled on the invoices already issued under
-this VAT number: a 2.3 service invoice, series A, VAT category 7 with exemption
-category 6, income classification `E3_561_006` / `category1_3`.
+The amount is the net value in euros. Everything else comes from an invoice
+template. Copy `templates/invoice-template.json.sample` to a `.json` file in
+`templates/` and fill in the issuer and counterpart details. When that directory
+contains exactly one `.json` file it is selected automatically; otherwise,
+provide the file explicitly with `--template <file>`.
 
 Useful flags:
 
@@ -31,7 +32,7 @@ Useful flags:
 | `--pdf` | after registering, download AADE's PDF of the invoice |
 | `--pdf-mark 400000000000000` | download the PDF for an already registered MARK and exit |
 | `--pdf-dir` | where to write PDFs (default: the current directory) |
-| `--template`, `--env` | alternative file locations |
+| `--template <file>`, `--env <file>` | explicit template and credentials file locations |
 
 `nextAa` is the ΑΑ (αύξων αριθμός) — the invoice number inside the series, the
 `<aa>` element of the header. AADE does not allocate it; the issuer owns the
@@ -97,8 +98,7 @@ handling all three commands share.
 ## Documentation
 
 `docs/NOTES.md` summarises the API; `docs/aade/` holds the official v2.0.2 spec,
-XSDs and sample payloads, including a real production response in
-`docs/aade/samples/`.
+XSDs and sample payloads.
 
 ## The PDF
 
@@ -111,9 +111,7 @@ AADE renders. That is what `--pdf` and `--pdf-mark` do.
 `<invoiceFormat>1</invoiceFormat>`, i.e. issued through its timologio
 application. Invoices merely transmitted by an ERP, including everything this
 tool sends, come back without it, and `--pdf` then reports that rather than
-writing a file. Verified both ways: the sandbox invoice registered by this tool
-has no link; production MARK 400000000000000, issued through timologio,
-downloads a one-page PDF.
+writing a file.
 
 So getting a PDF for our own submissions means rendering it here from the same
 data. Not done yet.

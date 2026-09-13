@@ -1,0 +1,25 @@
+{
+  "issuer": {
+    "country": "GR",
+    "branch": 0
+  },
+  "counterpart": {
+    "vatNumber": "000000000",
+    "country": "US",
+    "branch": 0,
+    "name": "EXAMPLE CUSTOMER",
+    "number": "123 Example Street",
+    "postalCode": "00000",
+    "city": "Example City"
+  },
+  "series": "A",
+  "invoiceType": "2.3",
+  "currency": "EUR",
+  "vatCategory": 7,
+  "vatExemptionCategory": 6,
+  "vatRatePercent": 0,
+  "incomeClassificationType": "E3_561_006",
+  "incomeClassificationCategory": "category1_3",
+  "paymentMethodType": 2,
+  "nextAa": 1
+}

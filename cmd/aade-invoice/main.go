@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/mauricioprado00/aade-invoice/internal/cli"
@@ -18,7 +19,7 @@ func run() error {
 	common := cli.Register(fs)
 	var (
 		dryRun       = fs.Bool("dry-run", false, "print the XML that would be submitted and stop")
-		templatePath = fs.String("template", "invoice-template.json", "invoice template to fill in")
+		templatePath = fs.String("template", "", "invoice template to fill in")
 		date         = fs.String("date", "", "issue date as YYYY-MM-DD (default: today)")
 		aa           = fs.Int("aa", 0, "invoice number within the series (default: nextAa from the template)")
 		pdf          = fs.Bool("pdf", false, "after registering, download AADE's PDF of the invoice")
@@ -50,11 +51,15 @@ func run() error {
 		return err
 	}
 
-	creds, err := common.Credentials()
+	resolvedTemplatePath, err := resolveTemplatePath(*templatePath, "templates")
 	if err != nil {
 		return err
 	}
-	tmpl, err := mydata.LoadTemplate(*templatePath)
+	tmpl, err := mydata.LoadTemplate(resolvedTemplatePath)
+	if err != nil {
+		return err
+	}
+	creds, err := common.Credentials()
 	if err != nil {
 		return err
 	}
@@ -115,7 +120,7 @@ func run() error {
 	// Only bump the local counter once AADE has actually accepted the number.
 	if *aa == 0 {
 		tmpl.NextAa = number + 1
-		if err := tmpl.Save(*templatePath); err != nil {
+		if err := tmpl.Save(resolvedTemplatePath); err != nil {
 			return fmt.Errorf("invoice registered but the counter could not be saved: %w", err)
 		}
 	}
@@ -129,6 +134,21 @@ func run() error {
 		}
 	}
 	return nil
+}
+
+func resolveTemplatePath(path, templatesDir string) (string, error) {
+	if path != "" {
+		return path, nil
+	}
+
+	matches, err := filepath.Glob(filepath.Join(templatesDir, "*.json"))
+	if err != nil {
+		return "", fmt.Errorf("find invoice templates: %w", err)
+	}
+	if len(matches) != 1 {
+		return "", fmt.Errorf("--template is required unless %s contains exactly one JSON file (found %d)", templatesDir, len(matches))
+	}
+	return matches[0], nil
 }
 
 func downloadPDF(client *mydata.Client, mark int64, dir string) error {
