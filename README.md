@@ -17,10 +17,19 @@ them to production. `--env` points at a different credentials file.
 ## aade-invoice
 
 The amount is the net value in euros. Everything else comes from an invoice
-template. Copy `templates/invoice-template.json.sample` to a `.json` file in
-`templates/` and fill in the issuer and counterpart details. When that directory
-contains exactly one `.json` file it is selected automatically; otherwise,
-provide the file explicitly with `--template <file>`.
+template. There are two ways to get one:
+
+* **From an existing invoice** — if you have already issued (or received) at
+  least one invoice for this counterpart, run
+  `./bin/aade-template-from-mark <mark>` with that invoice's MARK. It fetches
+  the invoice and writes a ready-to-use template under `templates/`, named
+  after the counterpart, with `nextAa` already set to the next number in the
+  series. See [aade-template-from-mark](#aade-template-from-mark) below.
+* **From scratch** — copy `templates/invoice-template.json.sample` to a `.json`
+  file in `templates/` and fill in the issuer and counterpart details by hand.
+
+When `templates/` contains exactly one `.json` file it is selected
+automatically; otherwise, provide the file explicitly with `--template <file>`.
 
 Useful flags:
 
