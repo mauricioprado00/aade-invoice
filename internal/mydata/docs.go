@@ -24,16 +24,17 @@ type ContinuationToken struct {
 // Doc is one invoice as myDATA holds it. Only the fields worth showing are
 // mapped; the full type is AadeBookInvoiceType in the XSD.
 type Doc struct {
-	Uid                   string      `xml:"uid"`
-	Mark                  int64       `xml:"mark"`
-	Issuer                DocParty    `xml:"issuer"`
-	Counterpart           DocParty    `xml:"counterpart"`
-	Header                DocHeader   `xml:"invoiceHeader"`
-	Details               []DocDetail `xml:"invoiceDetails"`
-	Summary               DocSummary  `xml:"invoiceSummary"`
-	InvoiceFormat         string      `xml:"invoiceFormat"`
-	QrCodeURL             string      `xml:"qrCodeUrl"`
-	DownloadingInvoiceURL string      `xml:"downloadingInvoiceUrl"`
+	Uid                   string             `xml:"uid"`
+	Mark                  int64              `xml:"mark"`
+	Issuer                DocParty           `xml:"issuer"`
+	Counterpart           DocParty           `xml:"counterpart"`
+	Header                DocHeader          `xml:"invoiceHeader"`
+	PaymentMethods        []DocPaymentMethod `xml:"paymentMethods>paymentMethodDetails"`
+	Details               []DocDetail        `xml:"invoiceDetails"`
+	Summary               DocSummary         `xml:"invoiceSummary"`
+	InvoiceFormat         string             `xml:"invoiceFormat"`
+	QrCodeURL             string             `xml:"qrCodeUrl"`
+	DownloadingInvoiceURL string             `xml:"downloadingInvoiceUrl"`
 }
 
 type DocParty struct {
@@ -41,8 +42,15 @@ type DocParty struct {
 	Country   string `xml:"country"`
 	Branch    int    `xml:"branch"`
 	Name      string `xml:"name"`
+	Number    string `xml:"address>number"`
 	City      string `xml:"address>city"`
 	PostCode  string `xml:"address>postalCode"`
+}
+
+// DocPaymentMethod is one entry of <paymentMethods><paymentMethodDetails>.
+type DocPaymentMethod struct {
+	Type   int    `xml:"type"`
+	Amount string `xml:"amount"`
 }
 
 type DocHeader struct {

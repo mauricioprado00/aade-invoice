@@ -4,12 +4,13 @@ Go command line tools for the AADE myDATA system.
 
 ```
 make
-./bin/aade-invoice <amount>   # register an invoice
-./bin/aade-list               # list invoices
-./bin/aade-read <mark>        # show one invoice
+./bin/aade-invoice <amount>              # register an invoice
+./bin/aade-list                          # list invoices
+./bin/aade-read <mark>                   # show one invoice
+./bin/aade-template-from-mark <mark>     # build a template from a past invoice
 ```
 
-All three behave the same way about environments and credentials: they read
+All four behave the same way about environments and credentials: they read
 `.env`, they talk to the **sandbox by default**, and `--prod` is what switches
 them to production. `--env` points at a different credentials file.
 
@@ -79,6 +80,30 @@ Looks the MARK up in both directions — what we transmitted first, then what wa
 addressed to us — and prints the header, the lines with their classifications,
 the totals and any QR/PDF links. `--json` and `--xml` give the raw document;
 `--pdf <dir>` also downloads AADE's rendering, subject to the limitation below.
+
+## aade-template-from-mark
+
+```
+./bin/aade-template-from-mark 400001970914584
+./bin/aade-template-from-mark --prod 400015153544489 --force
+```
+
+Fetches the invoice registered under a MARK and writes a new template under
+`templates/`, named after the counterpart (e.g. `templates/example-customer.json`).
+The template's `nextAa` is set to the invoice's number plus one, so it is ready
+to use with `--template` on the next `aade-invoice` run for that same
+counterpart. It looks the MARK up in both directions, same as `aade-read`: if
+we issued the invoice, the template is built for the counterpart we billed; if
+we received it, the template is built for whoever issued it to us.
+
+| Flag | Meaning |
+|---|---|
+| `--templates-dir` | directory to write into (default: `templates`) |
+| `--force` | overwrite the template file if it already exists |
+
+Every real template belongs in `templates/`, which is entirely gitignored
+except for `invoice-template.json.sample` — see `templates/invoice-template.json.sample`
+for the shape a template must have.
 
 ## Credentials
 
