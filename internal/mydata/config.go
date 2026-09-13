@@ -1,4 +1,4 @@
-package main
+package mydata
 
 import (
 	"bufio"
@@ -16,9 +16,9 @@ type Credentials struct {
 	Name            string
 }
 
-// loadDotEnv reads KEY=VALUE lines into the process environment, without
+// LoadDotEnv reads KEY=VALUE lines into the process environment, without
 // overwriting variables that are already set.
-func loadDotEnv(path string) error {
+func LoadDotEnv(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -47,9 +47,9 @@ func loadDotEnv(path string) error {
 	return s.Err()
 }
 
-// credentials picks the sandbox or production block out of the environment.
+// LoadCredentials picks the sandbox or production block out of the environment.
 // Production has an extra /myDATA/ path segment that the dev host does not.
-func credentials(production bool) (Credentials, error) {
+func LoadCredentials(production bool) (Credentials, error) {
 	c := Credentials{Name: "sandbox", BaseURL: "https://mydataapidev.aade.gr"}
 	prefix := "AADE_SANDBOX_"
 	if production {

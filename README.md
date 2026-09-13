@@ -1,12 +1,19 @@
 # aade-invoice
 
-Go command line that registers an invoice in the AADE myDATA system.
+Go command line tools for the AADE myDATA system.
 
 ```
-go build -o bin/aade-invoice .
-./bin/aade-invoice <amount>          # sandbox
-./bin/aade-invoice --prod <amount>   # the real thing
+make
+./bin/aade-invoice <amount>   # register an invoice
+./bin/aade-list               # list invoices
+./bin/aade-read <mark>        # show one invoice
 ```
+
+All three behave the same way about environments and credentials: they read
+`.env`, they talk to the **sandbox by default**, and `--prod` is what switches
+them to production. `--env` points at a different credentials file.
+
+## aade-invoice
 
 The amount is the net value in euros. Everything else comes from
 `invoice-template.json`, which is modelled on the invoices already issued under
@@ -26,10 +33,51 @@ Useful flags:
 | `--pdf-dir` | where to write PDFs (default: the current directory) |
 | `--template`, `--env` | alternative file locations |
 
-`nextAa` in the template is the local invoice counter. It is incremented only
-after AADE accepts a submission, and is skipped entirely when `--aa` is given.
-It can drift from what AADE holds if invoices are also issued elsewhere — pass
-`--aa` when in doubt.
+`nextAa` is the ΑΑ (αύξων αριθμός) — the invoice number inside the series, the
+`<aa>` element of the header. AADE does not allocate it; the issuer owns the
+counter, so the template keeps the next one to use. It is incremented only after AADE accepts a
+submission, and is skipped entirely when `--aa` is given. It can drift from what
+AADE holds if invoices are also issued elsewhere — `./bin/aade-list --prod
+--type 2.3 --series A` shows the real last number.
+
+## aade-list
+
+```
+./bin/aade-list --from 2026-01-01 --to 2026-12-31
+./bin/aade-list --prod --type 2.3 --series A
+./bin/aade-list --prod --source received
+```
+
+| Flag | Meaning |
+|---|---|
+| `--from`, `--to` | issue date range, `YYYY-MM-DD` (translated to the dd/MM/yyyy myDATA wants) |
+| `--type` | invoice type, e.g. `2.3` (appendix 8.1 of the spec) |
+| `--counterpart` | VAT number of the other party |
+| `--series` | invoice series, filtered locally |
+| `--after-mark`, `--max-mark` | MARK range |
+| `--source` | `transmitted` (default), `received`, or `all` |
+| `--xml` | raw XML instead of the table |
+
+`--source` picks which endpoint is read, and it is not the same distinction as
+who issued the document: expense documents we register ourselves are
+*transmitted* by us but *issued* by someone else. The DIR column says which,
+comparing the issuer against our own VAT number.
+
+Results are paged by myDATA through continuation tokens; the tool follows them
+up to `--max-pages`.
+
+## aade-read
+
+```
+./bin/aade-read 400001970914584
+./bin/aade-read --prod 400000000000000 --json
+./bin/aade-read --prod 400000000000000 --pdf .
+```
+
+Looks the MARK up in both directions — what we transmitted first, then what was
+addressed to us — and prints the header, the lines with their classifications,
+the totals and any QR/PDF links. `--json` and `--xml` give the raw document;
+`--pdf <dir>` also downloads AADE's rendering, subject to the limitation below.
 
 ## Credentials
 
@@ -39,6 +87,12 @@ Registration: sandbox at <https://mydata-dev-register.azurewebsites.net>,
 production at <https://www1.aade.gr/saadeapps2/bookkeeper-web> (TAXISnet login →
 «Φόρμα εγγραφής στο myDATA REST API»). The two are separate accounts with
 separate keys.
+
+## Layout
+
+`cmd/` holds one directory per command, `internal/mydata` the API client,
+invoice rendering and the template, `internal/cli` the flags and credential
+handling all three commands share.
 
 ## Documentation
 

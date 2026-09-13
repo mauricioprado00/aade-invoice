@@ -1,4 +1,4 @@
-package main
+package mydata
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,81 +74,16 @@ func (c *Client) SendInvoices(body []byte) (*ResponseDoc, error) {
 	return &doc, nil
 }
 
-// RequestedDoc is the reply to RequestTransmittedDocs; only the fields this
-// tool needs are mapped. See docs/aade/xsd/requestedInvoicesDoc-v2.0.2.xsd.
-type RequestedDoc struct {
-	XMLName  xml.Name         `xml:"RequestedDoc"`
-	Invoices []TransmittedDoc `xml:"invoicesDoc>invoice"`
-}
-
-type TransmittedDoc struct {
-	Uid                   string `xml:"uid"`
-	Mark                  int64  `xml:"mark"`
-	DownloadingInvoiceURL string `xml:"downloadingInvoiceUrl"`
-}
-
-// RequestTransmittedDocs returns the documents this entity transmitted with a
-// MARK greater than the one given.
-func (c *Client) RequestTransmittedDocs(afterMark int64) (*RequestedDoc, error) {
-	url := fmt.Sprintf("%s/RequestTransmittedDocs?mark=%d", c.creds.BaseURL, afterMark)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("aade-user-id", c.creds.UserID)
-	req.Header.Set("ocp-apim-subscription-key", c.creds.SubscriptionKey)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	payload, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s returned %s:\n%s", url, resp.Status, payload)
-	}
-
-	var doc RequestedDoc
-	if err := xml.Unmarshal(payload, &doc); err != nil {
-		return nil, fmt.Errorf("could not parse response:\n%s", payload)
-	}
-	return &doc, nil
-}
-
-// downloadURLForMark reads the invoice back and returns AADE's own PDF link for
-// it. The link is only present on invoices AADE renders itself; invoices merely
-// transmitted by an ERP may carry none.
-func (c *Client) downloadURLForMark(mark int64) (string, error) {
-	doc, err := c.RequestTransmittedDocs(mark - 1)
-	if err != nil {
-		return "", err
-	}
-	for _, inv := range doc.Invoices {
-		if inv.Mark != mark {
-			continue
-		}
-		if inv.DownloadingInvoiceURL == "" {
-			return "", fmt.Errorf("MARK %d carries no downloadingInvoiceUrl: AADE only renders a PDF for invoices issued through its own timologio application", mark)
-		}
-		return inv.DownloadingInvoiceURL, nil
-	}
-	return "", fmt.Errorf("MARK %d was not found in the transmitted documents", mark)
-}
-
 // DownloadInvoicePDF saves AADE's rendering of an invoice into dir and returns
 // the path written.
 func (c *Client) DownloadInvoicePDF(mark int64, dir string) (string, error) {
-	url, err := c.downloadURLForMark(mark)
+	link, err := c.downloadURLForMark(mark)
 	if err != nil {
 		return "", err
 	}
 
 	// The link 302s to the actual PDF; the default client follows that for us.
-	resp, err := c.http.Get(url)
+	resp, err := c.http.Get(link)
 	if err != nil {
 		return "", err
 	}
@@ -170,4 +106,36 @@ func (c *Client) DownloadInvoicePDF(mark int64, dir string) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+// get performs an authenticated GET and unmarshals the XML reply into out.
+func (c *Client) get(path string, query url.Values, out any) error {
+	endpoint := c.creds.BaseURL + path
+	if len(query) > 0 {
+		endpoint += "?" + query.Encode()
+	}
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("aade-user-id", c.creds.UserID)
+	req.Header.Set("ocp-apim-subscription-key", c.creds.SubscriptionKey)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	payload, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s returned %s:\n%s", endpoint, resp.Status, payload)
+	}
+	if err := xml.Unmarshal(payload, out); err != nil {
+		return fmt.Errorf("could not parse the response:\n%s", payload)
+	}
+	return nil
 }

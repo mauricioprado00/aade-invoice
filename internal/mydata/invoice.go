@@ -1,4 +1,4 @@
-package main
+package mydata
 
 import (
 	"bytes"
@@ -32,10 +32,10 @@ type Invoice struct {
 	VatCents int64
 }
 
-// build fills an Invoice from the template plus the values that change per
+// Build fills an Invoice from the template plus the values that change per
 // invoice. issuerVat is the VAT number tied to the API credentials, used when
 // the template does not spell one out.
-func (t *Template) build(netCents int64, issueDate string, aa int, issuerVat string) *Invoice {
+func (t *Template) Build(netCents int64, issueDate string, aa int, issuerVat string) *Invoice {
 	issuer := t.Issuer
 	if issuer.VatNumber == "" {
 		issuer.VatNumber = issuerVat
@@ -178,9 +178,9 @@ func formatCents(cents int64) string {
 	return fmt.Sprintf("%s%d.%02d", sign, cents/100, cents%100)
 }
 
-// parseAmount turns "1234.56" into 123456 cents. It refuses anything with more
+// ParseAmount turns "1234.56" into 123456 cents. It refuses anything with more
 // than two decimals rather than silently rounding money.
-func parseAmount(s string) (int64, error) {
+func ParseAmount(s string) (int64, error) {
 	s = strings.TrimSpace(strings.ReplaceAll(s, ",", "."))
 	if s == "" {
 		return 0, fmt.Errorf("empty amount")

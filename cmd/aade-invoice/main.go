@@ -1,3 +1,4 @@
+// Command aade-invoice registers an invoice in myDATA.
 package main
 
 import (
@@ -5,61 +6,55 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/mauricioprado00/aade-invoice/internal/cli"
+	"github.com/mauricioprado00/aade-invoice/internal/mydata"
 )
 
-func main() {
-	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
-	}
-}
+func main() { cli.Main(run) }
 
 func run() error {
+	fs := flag.NewFlagSet("aade-invoice", flag.ExitOnError)
+	common := cli.Register(fs)
 	var (
-		production   = flag.Bool("prod", false, "submit to the production myDATA API instead of the sandbox")
-		dryRun       = flag.Bool("dry-run", false, "print the XML that would be submitted and stop")
-		templatePath = flag.String("template", "invoice-template.json", "invoice template to fill in")
-		envPath      = flag.String("env", ".env", "file holding the API credentials")
-		date         = flag.String("date", "", "issue date as YYYY-MM-DD (default: today)")
-		aa           = flag.Int("aa", 0, "invoice number within the series (default: nextAa from the template)")
-		pdf          = flag.Bool("pdf", false, "after registering, download AADE's PDF of the invoice")
-		pdfMark      = flag.Int64("pdf-mark", 0, "download the PDF for an already registered MARK and exit")
-		pdfDir       = flag.String("pdf-dir", ".", "directory to write downloaded PDFs into")
+		dryRun       = fs.Bool("dry-run", false, "print the XML that would be submitted and stop")
+		templatePath = fs.String("template", "invoice-template.json", "invoice template to fill in")
+		date         = fs.String("date", "", "issue date as YYYY-MM-DD (default: today)")
+		aa           = fs.Int("aa", 0, "invoice number within the series (default: nextAa from the template)")
+		pdf          = fs.Bool("pdf", false, "after registering, download AADE's PDF of the invoice")
+		pdfMark      = fs.Int64("pdf-mark", 0, "download the PDF for an already registered MARK and exit")
+		pdfDir       = fs.String("pdf-dir", ".", "directory to write downloaded PDFs into")
 	)
-	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "usage: aade-invoice [flags] <amount>\n\nRegisters one invoice in myDATA. The amount is the net value in euros.\n\nflags:\n")
-		flag.PrintDefaults()
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "usage: aade-invoice [flags] <amount>\n\nRegisters one invoice in myDATA. The amount is the net value in euros.\n\nflags:\n")
+		fs.PrintDefaults()
 	}
-	flag.Parse()
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		return err
+	}
 
 	if *pdfMark != 0 {
-		if err := loadDotEnv(*envPath); err != nil {
-			return err
-		}
-		creds, err := credentials(*production)
+		client, _, err := common.Client()
 		if err != nil {
 			return err
 		}
-		return downloadPDF(NewClient(creds), *pdfMark, *pdfDir)
+		return downloadPDF(client, *pdfMark, *pdfDir)
 	}
 
-	if flag.NArg() != 1 {
-		flag.Usage()
+	if fs.NArg() != 1 {
+		fs.Usage()
 		return fmt.Errorf("expected exactly one amount")
 	}
-	netCents, err := parseAmount(flag.Arg(0))
+	netCents, err := mydata.ParseAmount(fs.Arg(0))
 	if err != nil {
 		return err
 	}
 
-	if err := loadDotEnv(*envPath); err != nil {
-		return err
-	}
-	creds, err := credentials(*production)
+	creds, err := common.Credentials()
 	if err != nil {
 		return err
 	}
-	tmpl, err := loadTemplate(*templatePath)
+	tmpl, err := mydata.LoadTemplate(*templatePath)
 	if err != nil {
 		return err
 	}
@@ -76,7 +71,7 @@ func run() error {
 		number = tmpl.NextAa
 	}
 
-	invoice := tmpl.build(netCents, issueDate, number, creds.VatNumber)
+	invoice := tmpl.Build(netCents, issueDate, number, creds.VatNumber)
 	body, err := invoice.RenderXML()
 	if err != nil {
 		return err
@@ -90,12 +85,12 @@ func run() error {
 	fmt.Printf("submitting %s %d for %s %s to %s\n",
 		invoice.Series, invoice.Aa, invoice.Gross(), invoice.Currency, creds.Name)
 
-	doc, err := NewClient(creds).SendInvoices(body)
+	client := mydata.NewClient(creds)
+	doc, err := client.SendInvoices(body)
 	if err != nil {
 		return err
 	}
 
-	client := NewClient(creds)
 	failed := false
 	var marks []int64
 	for _, r := range doc.Responses {
@@ -120,7 +115,7 @@ func run() error {
 	// Only bump the local counter once AADE has actually accepted the number.
 	if *aa == 0 {
 		tmpl.NextAa = number + 1
-		if err := tmpl.save(*templatePath); err != nil {
+		if err := tmpl.Save(*templatePath); err != nil {
 			return fmt.Errorf("invoice registered but the counter could not be saved: %w", err)
 		}
 	}
@@ -136,7 +131,7 @@ func run() error {
 	return nil
 }
 
-func downloadPDF(client *Client, mark int64, dir string) error {
+func downloadPDF(client *mydata.Client, mark int64, dir string) error {
 	path, err := client.DownloadInvoicePDF(mark, dir)
 	if err != nil {
 		return err

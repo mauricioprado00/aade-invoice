@@ -1,4 +1,4 @@
-package main
+package mydata
 
 import (
 	"encoding/json"
@@ -49,7 +49,7 @@ func (p Party) hasAddress() bool {
 	return p.Number != "" || p.PostalCode != "" || p.City != ""
 }
 
-func loadTemplate(path string) (*Template, error) {
+func LoadTemplate(path string) (*Template, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func loadTemplate(path string) (*Template, error) {
 	return &t, nil
 }
 
-func (t *Template) save(path string) error {
+func (t *Template) Save(path string) error {
 	data, err := json.MarshalIndent(t, "", "  ")
 	if err != nil {
 		return err
