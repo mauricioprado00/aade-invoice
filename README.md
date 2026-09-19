@@ -8,9 +8,13 @@ make
 ./bin/aade-list                          # list invoices
 ./bin/aade-read <mark>                   # show one invoice
 ./bin/aade-template-from-mark <mark>     # build a template from a past invoice
+./bin/aade-income --from … --to …        # income book
+./bin/aade-expenses --from … --to …      # expense book
+./bin/aade-vat --from … --to …           # VAT inputs and outputs
+./bin/aade-e3 --from … --to …            # E3 classification lines
 ```
 
-All four behave the same way about environments and credentials: they read
+All of them behave the same way about environments and credentials: they read
 `.env`, they talk to the **sandbox by default**, and `--prod` is what switches
 them to production. `--env` points at a different credentials file.
 
@@ -114,6 +118,51 @@ Every real template belongs in `templates/`, which is entirely gitignored
 except for `invoice-template.json.sample` — see `templates/invoice-template.json.sample`
 for the shape a template must have.
 
+## aade-income, aade-expenses, aade-vat, aade-e3
+
+The four read-only "book" methods of the API (spec §4.2.8–4.2.11). They report
+what AADE itself holds for our VAT number over a period, rather than listing
+documents one by one the way `aade-list` does.
+
+```
+./bin/aade-income --from 2026-01-01 --to 2026-12-31
+./bin/aade-expenses --prod --from 2026-01-01 --to 2026-03-31 --type 13.1
+./bin/aade-vat --prod --from 2026-01-01 --to 2026-03-31 --totals
+./bin/aade-e3 --prod --from 2026-01-01 --to 2026-12-31
+```
+
+`--from` and `--to` are **required** on all four — unlike `aade-list`, these
+methods refuse an open period. Dates are given as `YYYY-MM-DD` and converted to
+the `dd/MM/yyyy` the API wants.
+
+| Command | Method | What comes back |
+|---|---|---|
+| `aade-income` | `RequestMyIncome` | one line per customer × issue date × invoice type, with net, VAT, withheld, gross, the document count and the MARK range |
+| `aade-expenses` | `RequestMyExpenses` | the same, on the supplier side |
+| `aade-vat` | `RequestVatInfo` | the VAT boxes (`Vat301`, `Vat361`, …) per invoice, or per day with `--per-day` |
+| `aade-e3` | `RequestE3Info` | the E3 lines: code, category and amount |
+
+Shared flags: `--prod`, `--env`, `--json`, `--dry-run`, `--entity <vat>` (report
+on another VAT number instead of ours), `--max-pages`. `aade-income` and
+`aade-expenses` also take `--counterpart <vat>` and `--type <invoice type>`;
+`aade-vat` and `aade-e3` take `--per-day` and `--totals`.
+
+`--dry-run` prints the URL that would be called and stops, which is the useful
+thing to check before pointing one of these at production:
+
+```
+$ ./bin/aade-vat --prod --from 2026-01-01 --to 2026-01-31 --dry-run
+https://mydatapi.aade.gr/myDATA/RequestVatInfo?dateFrom=01%2F01%2F2026&dateTo=31%2F01%2F2026
+```
+
+Both table outputs end in totals, with cancelled records excluded. Results are
+paged through `continuationToken` automatically, except under `--per-day`,
+where the API ignores the token and returns everything at once.
+
+AADE publishes no XSD for the income/expense reply, only a field table
+(spec §6.3), so the parser matches its element names case-insensitively.
+
+
 ## Credentials
 
 Copy `.env.example` to `.env` and fill it in. `.env` is gitignored.
@@ -126,8 +175,8 @@ separate keys.
 ## Layout
 
 `cmd/` holds one directory per command, `internal/mydata` the API client,
-invoice rendering and the template, `internal/cli` the flags and credential
-handling all three commands share.
+invoice rendering and the template, `internal/cli` the flags, credential
+handling and the shared income/expenses command body.
 
 ## Documentation
 

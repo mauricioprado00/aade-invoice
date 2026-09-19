@@ -1,4 +1,4 @@
-COMMANDS := aade-invoice aade-list aade-read aade-template-from-mark
+COMMANDS := aade-invoice aade-list aade-read aade-template-from-mark aade-income aade-expenses aade-vat aade-e3
 
 .PHONY: all clean test
 all: $(addprefix bin/,$(COMMANDS))

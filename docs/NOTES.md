@@ -26,6 +26,12 @@ classification codes) from l.~4300.
 | Send | `POST {base}SendInvoices` | `POST https://mydataapidev.aade.gr/SendInvoices` |
 | Cancel | `GET {base}CancelInvoice?mark={mark}` | same path on dev host |
 | Read own | `GET {base}RequestTransmittedDocs?mark={mark}` | |
+| Books | `GET {base}RequestMyIncome`, `RequestMyExpenses`, `RequestVatInfo`, `RequestE3Info` | same paths on dev host |
+
+The four book methods (§4.2.8–4.2.11) all require `dateFrom`/`dateTo` in
+`dd/MM/yyyy` and page through `nextPartitionKey`/`nextRowKey`. Only
+`RequestVatInfo` and `RequestE3Info` have a published XSD; the income/expense
+reply (`RequestedBookInfo`) is described only as a field table in §6.3.
 
 Note the production base has the extra `/myDATA/` path segment; dev does not.
 

@@ -108,12 +108,19 @@ func (c *Client) DownloadInvoicePDF(mark int64, dir string) (string, error) {
 	return path, nil
 }
 
-// get performs an authenticated GET and unmarshals the XML reply into out.
-func (c *Client) get(path string, query url.Values, out any) error {
+// URL is the address a GET on this path with these parameters would hit. It
+// exists so a command can show its request under --dry-run without making it.
+func (c *Client) URL(path string, query url.Values) string {
 	endpoint := c.creds.BaseURL + path
 	if len(query) > 0 {
 		endpoint += "?" + query.Encode()
 	}
+	return endpoint
+}
+
+// get performs an authenticated GET and unmarshals the XML reply into out.
+func (c *Client) get(path string, query url.Values, out any) error {
+	endpoint := c.URL(path, query)
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return err
